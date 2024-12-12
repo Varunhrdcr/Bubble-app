@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubbles App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 20px auto;
+            background-color: white;
+        }
+        button {
+            display: block;
+            margin: 10px auto;
+        }
+        footer {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        #controls {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bubbles App</h1>
+    <div id="controls">
+        <label for="bubbleCount">Number of Bubbles: </label>
+        <input type="number" id="bubbleCount" value="4" min="1" max="10">
+        <label for="nightMode">Night Mode: </label>
+        <input type="checkbox" id="nightMode">
+        <button id="applySettings">Apply Settings</button>
+    </div>
+    <canvas id="bubbleCanvas" width="800" height="400"></canvas>
+    <button id="resetButton">Reset</button>
+    <footer>Made by Varun Sharma</footer>
+
+    <script>
+        const canvas = document.getElementById('bubbleCanvas');
+        const ctx = canvas.getContext('2d');
+        const bubbleCountInput = document.getElementById('bubbleCount');
+        const nightModeToggle = document.getElementById('nightMode');
+        const applySettingsButton = document.getElementById('applySettings');
+        const explosionSound = new Audio('https://www.soundjay.com/button/beep-07.wav');
+
+        let circles = [];
+        const arrowSpeed = 5;
+        let activeCircleIndex = null;
+
+        function generateRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        function createCircles(count) {
+            const canvasPadding = 60;
+            const bubbleSpacing = 75;
+            const canvasHeight = Math.max(count * bubbleSpacing + canvasPadding, 200);
+            canvas.height = canvasHeight; // Adjust canvas height dynamically
+
+            circles = [];
+            for (let i = 0; i < count; i++) {
+                circles.push({
+                    x: 100,
+                    y: canvasPadding + i * bubbleSpacing,
+                    radius: 20,
+                    color: generateRandomColor(),
+                    arrowX: canvas.width - 100,
+                    isHit: false
+                });
+            }
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw circles
+            circles.forEach(circle => {
+                ctx.beginPath();
+                ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = circle.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+
+            // Draw mirrored arrows
+            circles.forEach(circle => {
+                ctx.beginPath();
+                ctx.moveTo(circle.arrowX, circle.y);
+                ctx.lineTo(circle.arrowX + 30, circle.y - 10);
+                ctx.lineTo(circle.arrowX + 30, circle.y + 10);
+                ctx.lineTo(circle.arrowX, circle.y);
+                ctx.closePath();
+                ctx.fillStyle = 'black';
+                ctx.fill();
+            });
+        }
+
+        function drawExplosion(x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 30, 0, Math.PI * 2);
+            ctx.fillStyle = 'orange';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x, y, 50, 0, Math.PI * 2);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+            ctx.closePath();
+        }
+
+        function moveArrow() {
+            if (activeCircleIndex !== null) {
+                const circle = circles[activeCircleIndex];
+                if (circle.arrowX > circle.x + circle.radius) {
+                    circle.arrowX -= arrowSpeed;
+                    drawScene();
+                    requestAnimationFrame(moveArrow);
+                } else {
+                    explosionSound.play();
+                    circle.isHit = true;
+                    circle.color = 'grey'; // Change color after hit
+                    drawScene();
+                    drawExplosion(circle.x, circle.y);
+                    setTimeout(() => drawScene(), 500); // Clear explosion after animation
+                    activeCircleIndex = null;
+                }
+            }
+        }
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            circles.forEach((circle, index) => {
+                const distance = Math.sqrt((mouseX - circle.x) ** 2 + (mouseY - circle.y) ** 2);
+                if (distance <= circle.radius && !circle.isHit) {
+                    activeCircleIndex = index;
+                    moveArrow();
+                }
+            });
+        });
+
+        document.getElementById('resetButton').addEventListener('click', () => {
+            const count = parseInt(bubbleCountInput.value, 10);
+            createCircles(count);
+            drawScene();
+        });
+
+        applySettingsButton.addEventListener('click', () => {
+            if (nightModeToggle.checked) {
+                document.body.style.backgroundColor = 'black';
+                document.body.style.color = 'white';
+            } else {
+                document.body.style.backgroundColor = 'white';
+                document.body.style.color = 'black';
+            }
+            const count = parseInt(bubbleCountInput.value, 10);
+            createCircles(count);
+            drawScene();
+        });
+
+        // Initialize the scene
+        createCircles(parseInt(bubbleCountInput.value, 10));
+        drawScene();
+    </script>
+</body>
+</html>
